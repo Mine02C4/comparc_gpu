@@ -22,7 +22,7 @@ int Sbox[256] = {
   0x8c,0xa1,0x89,0x0d,0xbf,0xe6,0x42,0x68,0x41,0x99,0x2d,0x0f,0xb0,0x54,0xbb,0x16
 };
 
-void device_sub_bytes(int *state, int *d_sbox) {
+void device_sub_bytes(int *state, const int *d_sbox) {
   int i, j;
   unsigned char *cb=(unsigned char*)state;
   for(i=0; i<NBb; i+=4){
@@ -50,8 +50,23 @@ void device_shift_rows(int *state) {
   memcpy(cb,cw,sizeof(cw));
 }
 
-int dataget(void* data, int n) {
+int dataget(void* data, int n)
+{
   return(((unsigned char*)data)[n]);
+}
+
+int mul(int dt,int n)
+{
+  int i, x = 0;
+  for(i = 8; i > 0; i >>= 1)
+    {
+      x <<= 1;
+      if(x & 0x100)
+        x = (x ^ 0x1b) & 0xff;
+      if((n & i))
+        x ^= dt;
+    }
+  return(x);
 }
 
 void device_mix_columns(int *state) {
@@ -108,7 +123,7 @@ __global__ void device_aes_encrypt(unsigned char *pt, int *rkey,
   for (rnd = 1; rnd < NR; rnd++) {
     device_sub_bytes(data, d_sbox);
     device_shift_rows(data);
-    device_mix_columns(data, rkey);
+    device_mix_columns(data);
     device_add_round_key(data, rkey, rnd);
   }
 
