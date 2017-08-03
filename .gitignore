@@ -1,0 +1,8 @@
+## Editor backup and swap files
+*~
+.\#*
+\#**\#
+.*.sw[op]
+.sw[op]
+*.bak
+
