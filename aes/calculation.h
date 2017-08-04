@@ -1,18 +1,18 @@
 #ifndef __CALCULATION_H_INCLUDED__
 #define __CALCULATION_H_INCLUDED__
 
-#define NB (4)                        /* 128bit $B8GDj$H$7$F$N5,3J(B($B%G!<%?$ND9$5(B) */
+#define NB (4)                        /* 128bit 固定としての規格(データの長さ) */
 #define NBb (16)
 
-#define NK (4)                        /* 128-bit$B80%b!<%I$G$N80$ND9$5(B */
-#define NR (10)                       /* $B%i%&%s%I?t(B */
+#define NK (4)                        /* 128-bit鍵モードでの鍵の長さ */
+#define NR (10)                       /* ラウンド数 */
 
 /********************************************************************************/
 // You have to set FILESIZE to "16*128*13*16*512" at the time of your submission.
 // Please do not modify the other parts in this file.
 /*******************************************************************************/
-#define FILESIZE (32)
-// #define FILESIZE (16*128*13*16*512)
+//#define FILESIZE (32)
+#define FILESIZE (16*128*13*16*512)
 
 void SubBytes(int *);                 /* FIPS 197  P.16 Figure  6 */
 void ShiftRows(int *);                /* FIPS 197  P.17 Figure  8 */
