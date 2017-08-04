@@ -145,6 +145,10 @@ __global__ void device_aes_encrypt(unsigned char *pt, int *rkey,
   for (int i = 0; i < NB; i++) {
     (((int *)ct) + 4 * thread_id)[i] = data[i];
   }
+
+  if (thread_id == 0) {
+    datadump2("ID 0 : ", ct, 4);
+  }
 }
 
 void launch_aes_kernel(unsigned char *pt, int *rk, unsigned char *ct, long int size){
@@ -157,7 +161,9 @@ void launch_aes_kernel(unsigned char *pt, int *rk, unsigned char *ct, long int s
   int *d_rkey;
   int *d_sbox;
 
-  dim3 dim_grid(1,1,1), dim_block(2,1,1);
+  //dim3 dim_grid(425984,1,1), dim_block(512,1,1);
+  //dim3 dim_grid(53248,1,1), dim_block(4096,1);
+  dim3 dim_grid(53248,1,1), dim_block(256,1);
 
   cudaMalloc((void **)&d_pt, sizeof(unsigned char)*size);
   cudaMalloc((void **)&d_rkey, sizeof(int) * 44);
@@ -176,6 +182,7 @@ void launch_aes_kernel(unsigned char *pt, int *rk, unsigned char *ct, long int s
   cudaFree(d_pt);
   cudaFree(d_rkey);
   cudaFree(d_ct);
+  datadump2("Ciphertext on GPU: ", ct, 512);
 
 /*  for(int i = 0; i < (size / 16); i++){
     datadump2("Ciphertext on GPU: ", ct+16*i, 4);

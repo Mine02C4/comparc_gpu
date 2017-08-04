@@ -25,6 +25,7 @@ NFLAGS   += -dc
 #
 PROG      = aes
 OBJS	  = timer.o toolkit.o cpu_calc.o gpu_calc.o main.o
+HEADERS := calculation.h
 #
 ################################################################################
 
@@ -36,11 +37,11 @@ aes: ${OBJS}
 
 .SUFFIXES: .cpp .c .cu
 
-.cpp.o:
+.cpp.o: $(HEADERS)
 	${CXX} -c ${LDFLAGS} ${CFLAGS} $<
-.c.o:
+.c.o: $(HEADERS)
 	${CXX} -c ${LDFLAGS} ${CFLAGS} $<
-.cu.o:
+.cu.o: $(HEADERS)
 	${NVCC} -c -lm ${NFLAGS} $<
 
 data: data.c

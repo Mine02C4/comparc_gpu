@@ -27,3 +27,4 @@ void launch_cpu_aes(unsigned char *in, int *rkey, unsigned char *out, long int s
 void launch_aes_kernel(unsigned char *pt, int *rk, unsigned char *ct, long int size);
 
 #endif /* __CALCULATION_H_INCLUDED__ */
+
