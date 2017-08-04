@@ -3,7 +3,7 @@
 #include <math.h>
 #include "calculation.h"
 
-int Sbox[256] = {
+static int Sbox[256] = {
   0x63,0x7c,0x77,0x7b,0xf2,0x6b,0x6f,0xc5,0x30,0x01,0x67,0x2b,0xfe,0xd7,0xab,0x76,
   0xca,0x82,0xc9,0x7d,0xfa,0x59,0x47,0xf0,0xad,0xd4,0xa2,0xaf,0x9c,0xa4,0x72,0xc0,
   0xb7,0xfd,0x93,0x26,0x36,0x3f,0xf7,0xcc,0x34,0xa5,0xe5,0xf1,0x71,0xd8,0x31,0x15,
@@ -22,7 +22,18 @@ int Sbox[256] = {
   0x8c,0xa1,0x89,0x0d,0xbf,0xe6,0x42,0x68,0x41,0x99,0x2d,0x0f,0xb0,0x54,0xbb,0x16
 };
 
-void device_sub_bytes(int *state, const int *d_sbox) {
+__device__ __host__ void datadump2(const char *c, const void *dt, int len)
+{
+  int i;
+  unsigned char *cdt = (unsigned char *)dt;
+  printf("%s", c);
+  for (i = 0; i < len*4;i++) {
+    printf("%02x", cdt[i]);
+  }
+  printf("\n");
+}
+
+__device__ void device_sub_bytes(int *state, const int *d_sbox) {
   int i, j;
   unsigned char *cb=(unsigned char*)state;
   for(i=0; i<NBb; i+=4){
@@ -32,11 +43,16 @@ void device_sub_bytes(int *state, const int *d_sbox) {
   }
 }
 
-void device_shift_rows(int *state) {
+__device__ void device_shift_rows(int *state) {
   int i, j, i4;
   unsigned char *cb = (unsigned char*)state;
   unsigned char cw[NBb];
-  memcpy(cw, cb, sizeof(cw));
+  //memcpy(cw, cb, sizeof(cw));
+  for (i = 0; i < NBb; i++) {
+    cw[i] = cb[i];
+  }
+  datadump2("before shift rows cb : ", cb, 4);
+  datadump2("before shift rows cw : ", cw, 4);
 
   for (i = 0;i < NB; i+=4) {
     i4 = i*4;
@@ -47,15 +63,20 @@ void device_shift_rows(int *state) {
       cw[i4+j+3*4] = cb[i4+j+((j+3)&3)*4];
     }
   }
-  memcpy(cb,cw,sizeof(cw));
+  //datadump2("after shift rows cb : ", cb, 4);
+  //datadump2("after shift rows cw : ", cw, 4);
+  //memcpy(state, cw, 16);
+  for (i = 0; i < NBb; i++) {
+    cb[i] = cw[i];
+  }
 }
 
-int dataget(void* data, int n)
+__device__ unsigned char device_dataget(void* data, int n)
 {
   return(((unsigned char*)data)[n]);
 }
 
-int mul(int dt,int n)
+__device__ int device_mul(int dt,int n)
 {
   int i, x = 0;
   for(i = 8; i > 0; i >>= 1)
@@ -69,47 +90,49 @@ int mul(int dt,int n)
   return(x);
 }
 
-void device_mix_columns(int *state) {
+__device__ void device_mix_columns(int *state) {
   int i, i4, x;
   for(i = 0; i< NB; i++){
     i4 = i*4;
-    x  =  mul(dataget(state,i4+0),2) ^
-          mul(dataget(state,i4+1),3) ^
-          mul(dataget(state,i4+2),1) ^
-          mul(dataget(state,i4+3),1);
-    x |= (mul(dataget(state,i4+1),2) ^
-          mul(dataget(state,i4+2),3) ^
-          mul(dataget(state,i4+3),1) ^
-          mul(dataget(state,i4+0),1)) << 8;
-    x |= (mul(dataget(state,i4+2),2) ^
-          mul(dataget(state,i4+3),3) ^
-          mul(dataget(state,i4+0),1) ^
-          mul(dataget(state,i4+1),1)) << 16;
-    x |= (mul(dataget(state,i4+3),2) ^
-          mul(dataget(state,i4+0),3) ^
-          mul(dataget(state,i4+1),1) ^
-          mul(dataget(state,i4+2),1)) << 24;
+    x  =  device_mul(device_dataget(state,i4+0),2) ^
+          device_mul(device_dataget(state,i4+1),3) ^
+          device_mul(device_dataget(state,i4+2),1) ^
+          device_mul(device_dataget(state,i4+3),1);
+    x |= (device_mul(device_dataget(state,i4+1),2) ^
+          device_mul(device_dataget(state,i4+2),3) ^
+          device_mul(device_dataget(state,i4+3),1) ^
+          device_mul(device_dataget(state,i4+0),1)) << 8;
+    x |= (device_mul(device_dataget(state,i4+2),2) ^
+          device_mul(device_dataget(state,i4+3),3) ^
+          device_mul(device_dataget(state,i4+0),1) ^
+          device_mul(device_dataget(state,i4+1),1)) << 16;
+    x |= (device_mul(device_dataget(state,i4+3),2) ^
+          device_mul(device_dataget(state,i4+0),3) ^
+          device_mul(device_dataget(state,i4+1),1) ^
+          device_mul(device_dataget(state,i4+2),1)) << 24;
     state[i] = x;
   }
 }
 
-void device_add_round_key(int *state, int *w, int n)
+__device__ void device_add_round_key(int *state, int *w, int n)
 {
   int i;
-  for (i = 0; i <NB; i++) {
+  for (i = 0; i < NB; i++) {
     state[i] ^= w[i + NB * n];
   }
 }
 
 __global__ void device_aes_encrypt(unsigned char *pt, int *rkey,
     unsigned char *ct, const int *d_sbox, long int size) {
+  //printf("device_mul( 0x12, 3)  : %d\n", device_mul(0x12, 3));
 
   //This kernel executes AES encryption on a GPU.
   //Please modify this kernel!!
   int thread_id = blockDim.x * blockIdx.x + threadIdx.x;
 
-  if(thread_id == 0)
+  if(thread_id == 0) {
     printf("size = %ld\n", size);
+  }
 
   printf("You can use printf function to eliminate bugs in your kernel.\n");
   printf("This thread ID is %d.\n", thread_id);
@@ -117,12 +140,15 @@ __global__ void device_aes_encrypt(unsigned char *pt, int *rkey,
   int rnd;
   int data[NB];
   memcpy(data , pt + 16 * thread_id, NBb);
+  //datadump2("Plaintext        : ", data, 4);
 
   device_add_round_key(data, rkey, 0);
 
   for (rnd = 1; rnd < NR; rnd++) {
     device_sub_bytes(data, d_sbox);
+    //datadump2("Round after SB : ", data, 4);
     device_shift_rows(data);
+    //datadump2("Round after SR : ", data, 4);
     device_mix_columns(data);
     device_add_round_key(data, rkey, rnd);
   }
@@ -131,7 +157,13 @@ __global__ void device_aes_encrypt(unsigned char *pt, int *rkey,
   device_shift_rows(data);
   device_add_round_key(data, rkey, rnd);
 
-  memcpy(ct + 16 * thread_id , data, NBb);
+  for (int i = 0; i < NB; i++) {
+    (((int *)ct) + 4 * thread_id)[i] = data[i];
+  }
+  if(thread_id == 1) {
+    datadump2("Enc GPU        : ", data, 4);
+    datadump2("Enc GPU ct     : ", ct + 16 * thread_id, 4);
+  }
 }
 
 void launch_aes_kernel(unsigned char *pt, int *rk, unsigned char *ct, long int size){
@@ -144,35 +176,30 @@ void launch_aes_kernel(unsigned char *pt, int *rk, unsigned char *ct, long int s
   int *d_rkey;
   int *d_sbox;
 
-  dim3 dim_grid(1,1,1), dim_block(1,1,1);
+  dim3 dim_grid(1,1,1), dim_block(2,1,1);
 
   cudaMalloc((void **)&d_pt, sizeof(unsigned char)*size);
-  cudaMalloc((void **)&d_rkey, sizeof(int)*44);
-  cudaMalloc((void **)&d_ct, sizeof(unsigned char)*size);
+  cudaMalloc((void **)&d_rkey, sizeof(int) * 44);
   cudaMalloc((void **)&d_sbox, sizeof(int) * 256);
+  cudaMalloc((void **)&d_ct, sizeof(unsigned char)*size);
 
-  cudaMemset(d_pt, 0, sizeof(unsigned char)*size);
-  cudaMemcpy(d_pt, pt, sizeof(unsigned char)*size, cudaMemcpyHostToDevice);
+  cudaMemset(d_pt, 0, sizeof(unsigned char) * size);
+  cudaMemcpy(d_pt, pt, sizeof(unsigned char) * size, cudaMemcpyHostToDevice);
   cudaMemcpy(d_rkey, rk, sizeof(int)*44, cudaMemcpyHostToDevice);
   cudaMemcpy(d_sbox, Sbox, sizeof(int) * 256, cudaMemcpyHostToDevice);
 
   device_aes_encrypt<<<dim_grid, dim_block>>>(d_pt, d_rkey, d_ct, d_sbox, size);
-  cudaMemcpy(ct, d_ct, sizeof(unsigned char)*size, cudaMemcpyDeviceToHost);
+  cudaMemcpy(ct, d_ct, sizeof(unsigned char) * size, cudaMemcpyDeviceToHost);
 
   cudaFree(d_sbox);
   cudaFree(d_pt);
   cudaFree(d_rkey);
   cudaFree(d_ct);
+
+  for(int i = 0; i < (size / 16); i++){
+    datadump2("Ciphertext on GPU: ", ct+16*i, 4);
+    printf("\n");
+  }
 }
-
-
-
-
-
-
-
-
-
-
 
 
