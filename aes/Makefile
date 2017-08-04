@@ -28,6 +28,9 @@ OBJS	  = timer.o toolkit.o cpu_calc.o gpu_calc.o main.o
 #
 ################################################################################
 
+score.txt: aes
+	./aes | tee $@
+
 aes: ${OBJS}
 	$(NVCC) -o $(PROG) $(LDFLAGS) -arch sm_52 $^
 

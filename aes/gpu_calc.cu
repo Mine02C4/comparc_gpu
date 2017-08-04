@@ -47,12 +47,9 @@ __device__ void device_shift_rows(int *state) {
   int i, j, i4;
   unsigned char *cb = (unsigned char*)state;
   unsigned char cw[NBb];
-  //memcpy(cw, cb, sizeof(cw));
   for (i = 0; i < NBb; i++) {
     cw[i] = cb[i];
   }
-  datadump2("before shift rows cb : ", cb, 4);
-  datadump2("before shift rows cw : ", cw, 4);
 
   for (i = 0;i < NB; i+=4) {
     i4 = i*4;
@@ -63,9 +60,6 @@ __device__ void device_shift_rows(int *state) {
       cw[i4+j+3*4] = cb[i4+j+((j+3)&3)*4];
     }
   }
-  //datadump2("after shift rows cb : ", cb, 4);
-  //datadump2("after shift rows cw : ", cw, 4);
-  //memcpy(state, cw, 16);
   for (i = 0; i < NBb; i++) {
     cb[i] = cw[i];
   }
@@ -130,13 +124,6 @@ __global__ void device_aes_encrypt(unsigned char *pt, int *rkey,
   //Please modify this kernel!!
   int thread_id = blockDim.x * blockIdx.x + threadIdx.x;
 
-  if(thread_id == 0) {
-    printf("size = %ld\n", size);
-  }
-
-  printf("You can use printf function to eliminate bugs in your kernel.\n");
-  printf("This thread ID is %d.\n", thread_id);
-
   int rnd;
   int data[NB];
   memcpy(data , pt + 16 * thread_id, NBb);
@@ -146,9 +133,7 @@ __global__ void device_aes_encrypt(unsigned char *pt, int *rkey,
 
   for (rnd = 1; rnd < NR; rnd++) {
     device_sub_bytes(data, d_sbox);
-    //datadump2("Round after SB : ", data, 4);
     device_shift_rows(data);
-    //datadump2("Round after SR : ", data, 4);
     device_mix_columns(data);
     device_add_round_key(data, rkey, rnd);
   }
@@ -159,10 +144,6 @@ __global__ void device_aes_encrypt(unsigned char *pt, int *rkey,
 
   for (int i = 0; i < NB; i++) {
     (((int *)ct) + 4 * thread_id)[i] = data[i];
-  }
-  if(thread_id == 1) {
-    datadump2("Enc GPU        : ", data, 4);
-    datadump2("Enc GPU ct     : ", ct + 16 * thread_id, 4);
   }
 }
 
@@ -196,10 +177,10 @@ void launch_aes_kernel(unsigned char *pt, int *rk, unsigned char *ct, long int s
   cudaFree(d_rkey);
   cudaFree(d_ct);
 
-  for(int i = 0; i < (size / 16); i++){
+/*  for(int i = 0; i < (size / 16); i++){
     datadump2("Ciphertext on GPU: ", ct+16*i, 4);
     printf("\n");
-  }
+  } */
 }
 
 
